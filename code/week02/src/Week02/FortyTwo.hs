@@ -31,10 +31,12 @@ import           Text.Printf         (printf)
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
 {-# INLINABLE mkValidator #-}
+//             Datum->Redeemer->Context-> Type
 mkValidator :: Data -> Data -> Data -> ()
 mkValidator _ r _
     | r == I 42 = ()
     | otherwise = traceError "wrong redeemer"
+// The r is the redeemer. In this case, only if 42 is returned will the validator pass
 
 validator :: Validator
 validator = mkValidatorScript $$(PlutusTx.compile [|| mkValidator ||])
