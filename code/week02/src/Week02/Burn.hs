@@ -33,6 +33,8 @@ import           Text.Printf         (printf)
 {-# INLINABLE mkValidator #-}
 mkValidator :: Data -> Data -> Data -> ()
 mkValidator _ _ _ = traceError "BURNT!"
+//An _ allows for any information to be present and still pass. If no information is present then it will return a false
+
 
 validator :: Validator
 validator = mkValidatorScript $$(PlutusTx.compile [|| mkValidator ||])
