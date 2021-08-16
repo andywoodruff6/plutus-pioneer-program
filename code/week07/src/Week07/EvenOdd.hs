@@ -40,26 +40,26 @@ import qualified Prelude
 data Game = Game
     { gFirst          :: !PubKeyHash
     , gSecond         :: !PubKeyHash
-    , gStake          :: !Integer
-    , gPlayDeadline   :: !POSIXTime
-    , gRevealDeadline :: !POSIXTime
-    , gToken          :: !AssetClass
+    , gStake          :: !Integer    -- wager for the game
+    , gPlayDeadline   :: !POSIXTime  -- amount of time the player has
+    , gRevealDeadline :: !POSIXTime  -- time when the game ends
+    , gToken          :: !AssetClass --NFT to keep track of where we are in the game
     } deriving (Show, Generic, FromJSON, ToJSON, Prelude.Eq, Prelude.Ord)
 
 PlutusTx.makeLift ''Game
 
-data GameChoice = Zero | One
+data GameChoice = Zero | One   -- The two choices that the players have
     deriving (Show, Generic, FromJSON, ToJSON, ToSchema, Prelude.Eq, Prelude.Ord)
 
-instance Eq GameChoice where
-    {-# INLINABLE (==) #-}
+instance Eq GameChoice where  -- sets up the outcome table
+    {-# INLINABLE (==) #-}   -- Has to have this to work.
     Zero == Zero = True
     One  == One  = True
     _    == _    = False
 
-PlutusTx.unstableMakeIsData ''GameChoice
+PlutusTx.unstableMakeIsData ''GameChoice 
 
-data GameDatum = GameDatum ByteString (Maybe GameChoice)
+data GameDatum = GameDatum ByteString (Maybe GameChoice)  -- Bytestring will be what player one submits and then it has to be a Maybe incase player two doesnt play
     deriving Show
 
 instance Eq GameDatum where
