@@ -63,8 +63,9 @@ instance Eq GameChoice where
 
 PlutusTx.unstableMakeIsData ''GameChoice
 
-data GameDatum = GameDatum ByteString (Maybe GameChoice) | Finished
+data GameDatum = GameDatum ByteString (Maybe GameChoice) | Finished 
     deriving Show
+-- Finished represents the end of our statemachine 
 
 instance Eq GameDatum where
     {-# INLINABLE (==) #-}
@@ -90,30 +91,40 @@ gameDatum o f = do
     Datum d <- f dh
     PlutusTx.fromBuiltinData d
 
+------- This is where the example differes from the Even_Odd.hs and starts implementing state machines. ----------------- 
+
 {-# INLINABLE transition #-}
 transition :: Game -> State GameDatum -> GameRedeemer -> Maybe (TxConstraints Void Void, State GameDatum)
+-- We have a transition call so we start with a "State" and then s (GameDatum), this moves to i (GameRedeemer), finally
+-- we move to the Maybe, constraints and the new state. 
+-- GameDatum is a pair consisting of the datum and the value
 transition game s r = case (stateValue s, stateData s, r) of
+-- 
     (v, GameDatum bs Nothing, Play c)
         | lovelaces v == gStake game         -> Just ( Constraints.mustBeSignedBy (gSecond game)                    <>
                                                        Constraints.mustValidateIn (to $ gPlayDeadline game)
                                                      , State (GameDatum bs $ Just c) (lovelaceValueOf $ 2 * gStake game)
                                                      )
-    (v, GameDatum _ (Just _), Reveal _)
+--The just output consists of two things, the constraints and then the new state. It is sepperated by a comma  
+--We don't need to worry about the NFT because the state machine has already handled that logic
+
+    (v, GameDatum _ (Just _), Reveal _) -- The second player plays and the first player wins
         | lovelaces v == (2 * gStake game)   -> Just ( Constraints.mustBeSignedBy (gFirst game)                     <>
                                                        Constraints.mustValidateIn (to $ gRevealDeadline game)
                                                      , State Finished mempty
                                                      )
-    (v, GameDatum _ Nothing, ClaimFirst)
+    (v, GameDatum _ Nothing, ClaimFirst) -- The second player doesn't play so player 1 gets their stake back
         | lovelaces v == gStake game         -> Just ( Constraints.mustBeSignedBy (gFirst game)                     <>
                                                        Constraints.mustValidateIn (from $ 1 + gPlayDeadline game)
                                                      , State Finished mempty
                                                      )
-    (v, GameDatum _ (Just _), ClaimSecond)
+    (v, GameDatum _ (Just _), ClaimSecond)  -- The second player wins so they can claim the stake
         | lovelaces v == (2 * gStake game)   -> Just ( Constraints.mustBeSignedBy (gSecond game)                    <>
                                                        Constraints.mustValidateIn (from $ 1 + gRevealDeadline game)
                                                      , State Finished mempty
                                                      )
     _                                        -> Nothing
+    --If no one does anything then Nothing
 
 {-# INLINABLE final #-}
 final :: GameDatum -> Bool
