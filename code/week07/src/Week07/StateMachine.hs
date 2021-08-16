@@ -99,7 +99,8 @@ transition :: Game -> State GameDatum -> GameRedeemer -> Maybe (TxConstraints Vo
 -- we move to the Maybe, constraints and the new state. 
 -- GameDatum is a pair consisting of the datum and the value
 transition game s r = case (stateValue s, stateData s, r) of
--- 
+--  v is lovelaceValueOf (fpStake fp -- c is fpChoice fp and
+-- bs is sha2_256 $ fpNonce fp `concatenate` if c == Zero then bsZero else bsOne
     (v, GameDatum bs Nothing, Play c)
         | lovelaces v == gStake game         -> Just ( Constraints.mustBeSignedBy (gSecond game)                    <>
                                                        Constraints.mustValidateIn (to $ gPlayDeadline game)
@@ -216,6 +217,9 @@ firstGame fp = do
     waitUntilTimeHasPassed $ fpPlayDeadline fp
 
     m <- mapError' $ getOnChainState client
+-- getOnChainState takes a client and returns Maybe onchainstate. 
+-- onchainstate is a tuple of TypedSctriptTxOut and TypedSctriptTxOutRef 
+-- TypedSctriptTxOut has a TxOut and a DatumType
     case m of
         Nothing             -> throwError "game output not found"
         Just ((o, _), _) -> case tyTxOutData o of
