@@ -1,47 +1,93 @@
 {-# LANGUAGE OverloadedStrings #-}
-import           Language.Marlowe.Extended
+import Language.Marlowe.Extended
 
 main :: IO ()
-main = print . pretty $ contract "User1" "User2" "User3" $ Constant 100
--- The quoted names are what will appear in the UI
--- the Constant 100 is the deposit amount
+main = print . pretty $ contract "Andy" "Ben" "Connor" $ Constant 100
 
 choiceId :: Party -> ChoiceId
-choiceId p = ChoiceId "Winner" p                         -- The p is the variable for the party name
+choiceId p = ChoiceId "Winner" p
 
-contract :: Party -> Party -> Party -> Value -> Contract -- Takes three Users and a value to return a contract
-contract alice bob charlie deposit =                     -- Sets up the variable names to be used in the rest of the contract
+contract :: Party -> Party -> Party -> Value -> Contract
+contract person_one person_two person_three deposit =
     When
-        [ f alice bob charlie                            -- Given that we are using [] in a when then it has to be a case
-        , f bob alice charlie]
-        20 Close
+        [ f person_one person_two
+        , f person_two person_one
+        ]
+        10 Close
   where
-    f :: Party -> Party -> Party -> Case
-    f x y z =
+    f :: Party -> Party -> Case
+    f x y =
         Case
-            (Deposit z z ada $ AddValue deposit deposit)
-            (When
-                [Case
-                    (Deposit x x ada deposit)                    -- to account, from party, token, value
-                    (When
-                        [Case
-                            (Deposit y y ada deposit)            -- to account, from party, token, value
-                            (When
-                                [Case
-                                    (Choice (choiceId charlie) [Bound 1 2])
-                                    (If (ValueEQ (ChoiceValue $ choiceId charlie) (Constant 1))
-                                        (Pay bob (Account alice) ada deposit Close)
-                                        (Pay alice (Account bob) ada deposit Close)
-                                    )
-                                ]
-                            40 
-                            (Pay charlie (Account alice) ada deposit $
-                             Pay charlie (Account bob) ada deposit
-                            Close)                             -- Sets final timeout
-                            )
-                        ]
-                    30 Close
-                    )
-                ]
-            20 Close
+            -- game host to post collateral
+            (Deposit
+                person_three
+                person_three
+                ada
+                (AddValue deposit deposit)
             )
+                (When
+                    [Case
+                        -- first person to ante up
+                        (Deposit
+                            x
+                            x
+                            ada
+                            deposit
+                        )
+                        (When
+                            [Case
+                                -- second person to ante up
+                                (Deposit
+                                    y
+                                    y
+                                    ada
+                                    deposit
+                                )
+                                (When
+                                    [Case
+                                        -- person_three picks a winner
+                                        (Choice
+                                            (choiceId person_three)
+                                            [Bound 1 2]
+                                        )
+                                        -- IF three picks 1 give $ to one, else give $ to two
+                                        (If
+                                            (ValueEQ
+                                                (ChoiceValue $ choiceId person_three)
+                                                (Constant 1)
+                                            )
+                                            (Pay
+                                                person_two
+                                                (Account person_one)
+                                                ada
+                                                deposit
+                                                Close
+                                            )
+                                            (Pay
+                                                person_one
+                                                (Account person_two)
+                                                ada
+                                                deposit
+                                                Close
+                                            )
+                                        )]
+                                    40 -- picking time out. if it triggers three loses their collateral
+                                        (Pay
+                                            person_three
+                                            (Account person_one)
+                                            ada
+                                            deposit
+                                            (Pay
+                                                person_three
+                                                (Account person_two)
+                                                ada
+                                                deposit
+                                                Close
+                                            )
+                                        )
+                                )]
+                            30 Close
+                        )]
+                    20 Close
+                )
+            
